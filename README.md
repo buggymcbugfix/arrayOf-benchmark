@@ -4,6 +4,20 @@ As part of my Summer of Haskell project I implemented a new GHC primop
 `smallArrayOf#` which creates an array from any number of elements passed via a
 (nested) unboxed tuple.
 
+## Benchmark Results
+
+`bench.hs` benchmarks how long it takes to initialize an array of known elements
+with the new primop and to read the last element (blue). We compare this to the
+best (to our knowledge) previously available method which is unrolled array
+initialization via Template Haskell (green) and dynamic initialization in a
+(non-unrolled) loop (yellow).
+
+![A visualisation of output.csv](arrayOf-benchmark.png)
+
+These benchmark results validate that the new primop achieves its goal at
+offering markedly improved performance (~2.5x) for array initialization operations
+when the number of elements N is statically known (we benchmark for 1 <= N <= 500).
+
 ## Background
 
 Consider this program fragment as an example of using the new primop:
@@ -30,7 +44,7 @@ In other words, `smallArrayOf#` is a **variadic primop**—the first of its kind
 in GHC. Its type signature is currently:
 
 ~~~hs
-smallArrayOf# :: forall (as :: TYPE r) a. as -> SmallArray# a
+smallArrayOf# :: forall r (as :: TYPE r) a. as -> SmallArray# a
 ~~~
 
 In other words it is pretty much untyped and highly unsafe: it would for example
@@ -39,7 +53,7 @@ allow filling an array with `Bool`s and typing it at `SmallArray# Int`. Yikes!
 Once I find out how I would at least like to restrict the type to the following:
 
 ~~~hs
-smallArrayOf# :: forall (as :: TYPE ('TupleRep rs)) a. as -> SmallArray# a
+smallArrayOf# :: forall rs (as :: TYPE ('TupleRep rs)) a. as -> SmallArray# a
 ~~~
 
 This rejects anything but unboxed tuples as an argument to `smallArrayOf#`,
@@ -62,13 +76,15 @@ better to relegate the job of exposing a safe(r) interface to a library, such as
 2. There is no precedent for class constraints or type families in
    [`GHC.Exts`](https://hackage.haskell.org/package/base-4.14.0.0/docs/GHC-Exts.html).
 
+## A Typed Template Haskell Interface for Arrays of Fully Evaluated Static Data
+
 [MkSmallArray.hs](MkSmallArray.hs) provides an example of a possible Typed
 Template Haskell interface for creating `SmallArray#`s from lists and it in fact
 guarantees typesafe usage, however at the cost of having a `Lift` constraint on
 the element type:
 
 ~~~hs
-smallArrayOf :: Lift a => [a] -> Q (TExp (SmallArray# a))
+evaluatedSmallArrayOf :: Lift a => [a] -> Q (TExp (SmallArray# a))
 ~~~
 
 With this we can easily write code for generating static lookup tables for
@@ -113,22 +129,8 @@ the fields to `undefined` and then writing all the fields and finally freezing
 the array to an immutable one. (GHC can't just give us junk memory because the
 GC would go haywire.)
 
-So we are doing at least twice as much work as we should! And sure enough the
-benchmark results reflect this intuition...
-
-## Benchmark Results
-
-`bench.hs` benchmarks how long it takes to initialize an array of known elements
-with the new primop and to read the last element (blue). We compare this to the
-best (to our knowledge) previously available method which is unrolled array
-initialization via Template Haskell (green) and dynamic initialization in a
-(non-unrolled) loop (yellow).
-
-![A visualisation of output.csv](arrayOf-benchmark.png)
-
-These benchmark results validate that the new primop achieves its goal at
-offering markedly improved performance (~2.5x) for array initialization operations
-when the number of elements N is statically known (we benchmark for 1 <= N <= 500).
+So we are doing at least twice as much work as we should—great that the
+benchmark results reflect this intuition!
 
 
 ## Running the Benchmark
