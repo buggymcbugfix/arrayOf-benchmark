@@ -14,13 +14,13 @@ import MkSmallArray
 import qualified MkSmallArrayOld as Old
 
 -- create array using `smallArrayOf#` primop
-new :: Int -> TExpQ (Int -> Int)
+new :: Int -> Code Q (Int -> Int)
 new n = [|| \(I# i) ->
               case indexSmallArray# $$(smallArrayOf [0..n]) i of
                 (# k #) -> k ||]
 
 -- initialize new array to `undefined` and then unroll writing all slots
-old :: Int -> TExpQ (Int -> Int)
+old :: Int -> Code Q (Int -> Int)
 old n = [|| \(I# i) ->
               case indexSmallArray# $$(Old.smallArrayOf [0..n]) i of
                 (# k #) -> k ||]
@@ -38,5 +38,5 @@ dynam (I# size) (I# i) = runST (ST $ \s0 ->
       0# -> let s' = writeSmallArray# marr j (I# j) s in go marr (j +# 1#) s'
       _ -> s
 
-listTE :: [TExpQ a] -> TExpQ [a]
-listTE xs = unsafeTExpCoerce $ listE $ map (fmap unType) xs
+listTE :: [Code Q a] -> Code Q [a]
+listTE xs = unsafeCodeCoerce $ listE $ map unTypeCode xs

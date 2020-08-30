@@ -19,8 +19,8 @@ data Box a = MkBox { unbox :: SmallArray# a }
 boom :: a
 boom = error "boom!"
 
-smallArrayOf :: Lift a => [a] -> Q (TExp (SmallArray# a))
-smallArrayOf xs = TExp <$> (new =<< go 0 xs)
+smallArrayOf :: Lift a => [a] -> Code Q (SmallArray# a)
+smallArrayOf xs = liftCode $ TExp <$> (new =<< go 0 xs)
 	where
 		size = length xs
 		new rest = pure
