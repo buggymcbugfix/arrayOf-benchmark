@@ -1,12 +1,17 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module MkSmallArray where
+module MkSmallArray
+  ( smallArrayOf
+  , listToUnboxedTupE
+  , expsToUnboxedTupE
+  )
+  where
 
 import GHC.Settings.Constants (mAX_TUPLE_SIZE)
 import GHC.Exts (SmallArray#, smallArrayOf#)
-import Language.Haskell.TH -- (ExpQ)
-import Language.Haskell.TH.Syntax -- (Q, TExp, Exp(UnboxedTupE), Lift(lift), unsafeTExpCoerce)
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax
 
 smallArrayOf :: Lift a => [a] -> Code Q (SmallArray# a)
 smallArrayOf xs = [|| smallArrayOf# $$(unsafeCodeCoerce $ listToUnboxedTupE xs) ||]
